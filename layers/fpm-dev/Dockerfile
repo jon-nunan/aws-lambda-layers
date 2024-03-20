@@ -27,7 +27,7 @@ COPY --link bref-entrypoint.sh /
 RUN chmod +x /bref-entrypoint.sh
 
 # Install node to run the JS app below
-RUN curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+RUN curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
 RUN dnf install -y nodejs
 
 # Install the bref/local-api-gateway app in our container (avoids running 2 containers)

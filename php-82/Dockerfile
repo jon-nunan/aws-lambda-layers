@@ -458,6 +458,7 @@ RUN set -xe; \
 # We can install extensions manually or using `pecl`
 RUN pecl install APCu
 
+RUN dnf install -y php8.2-gd
 
 # ---------------------------------------------------------------
 # Now we copy everything we need for the layers into /bref-layer (which will be used for the real /opt later)

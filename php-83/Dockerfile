@@ -484,6 +484,7 @@ RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/intl.so
 RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/opcache.so /bref-layer/lib
 RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/pdo_mysql.so /bref-layer/lib
 RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/pdo_pgsql.so /bref-layer/lib
+RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/gd.so /bref-layer/lib
 
 # Copy the OpenSSL certificates file
 RUN cp ${CA_BUNDLE} /bref-layer/bref/ssl/cert.pem
