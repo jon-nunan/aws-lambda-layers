@@ -30,6 +30,8 @@ RUN chmod +x /bref-entrypoint.sh
 RUN curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
 RUN dnf install -y nodejs
 
+COPY --from=bref/extra-gd-php-82:1 /opt /opt
+
 # Install the bref/local-api-gateway app in our container (avoids running 2 containers)
 COPY --link --from=bref/local-api-gateway /app /local-api-gateway
 EXPOSE 8000
