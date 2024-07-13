@@ -22,6 +22,8 @@ RUN set -xe \
     # Clean up the package manager cache
  && microdnf -y clean all
 
+RUN dnf install -y libjpeg-turbo-devel libpng-devel libwebp-devel freetype-devel
+
 # We need a base path for all the sourcecode we will build from.
 ENV BUILD_DIR="/tmp/build"
 
@@ -429,7 +431,10 @@ RUN CFLAGS="-fstack-protector-strong -fpic -fpie -O3 -I${INSTALL_DIR}/include -I
         --with-zlib-dir \
         --with-curl \
         --enable-exif \
+        --with-jpeg \
+        --with-webp \
         --enable-ftp \
+        --enable-gd \
         --with-gettext \
         --enable-mbstring \
         --with-pdo-mysql=shared,mysqlnd \
@@ -484,6 +489,7 @@ RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/intl.so
 RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/opcache.so /bref-layer/lib
 RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/pdo_mysql.so /bref-layer/lib
 RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/pdo_pgsql.so /bref-layer/lib
+RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/gd.so /bref-layer/lib
 
 # Copy the OpenSSL certificates file
 RUN cp ${CA_BUNDLE} /bref-layer/bref/ssl/cert.pem
