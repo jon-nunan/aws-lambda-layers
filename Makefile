@@ -68,7 +68,6 @@ upload-layers-php-%:
 	# Upload the FPM layers to AWS
 	LAYER_NAME=${CPU_PREFIX}php-$*-fpm $(MAKE) -C ./utils/lambda-publish publish-parallel
 
-
 # Publish Docker images to Docker Hub.
 upload-to-docker-hub: upload-to-docker-hub-php-80 upload-to-docker-hub-php-81 upload-to-docker-hub-php-82 upload-to-docker-hub-php-83
 upload-to-docker-hub-php-%:

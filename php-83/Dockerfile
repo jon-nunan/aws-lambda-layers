@@ -22,6 +22,8 @@ RUN set -xe \
     # Clean up the package manager cache
  && microdnf -y clean all
 
+RUN dnf install -y libjpeg-turbo-devel libpng-devel libwebp-devel freetype-devel
+
 # We need a base path for all the sourcecode we will build from.
 ENV BUILD_DIR="/tmp/build"
 
@@ -430,7 +432,10 @@ RUN CFLAGS="-fstack-protector-strong -fpic -fpie -O3 -I${INSTALL_DIR}/include -I
         --with-zlib-dir \
         --with-curl \
         --enable-exif \
+        --with-jpeg \
+        --with-webp \
         --enable-ftp \
+        --enable-gd \
         --with-gettext \
         --enable-mbstring \
         --with-pdo-mysql=shared,mysqlnd \
@@ -459,6 +464,7 @@ RUN set -xe; \
 # We can install extensions manually or using `pecl`
 RUN pecl install APCu
 
+RUN dnf install -y php8.3-gd
 
 # ---------------------------------------------------------------
 # Now we copy everything we need for the layers into /bref-layer (which will be used for the real /opt later)
