@@ -11,24 +11,18 @@ ARG VERSION_PHP=8.2.17
 # https://docs.aws.amazon.com/lambda/latest/dg/current-supported-versions.html
 # AWS provides a Docker image that we use here:
 # https://github.com/amazonlinux/container-images/tree/amzn2
-FROM public.ecr.aws/lambda/provided:al2-${IMAGE_VERSION_SUFFIX} as build-environment
+FROM public.ecr.aws/lambda/provided:al2023-${IMAGE_VERSION_SUFFIX} as build-environment
 
 
 RUN set -xe \
-    # Download yum repository data to cache
- && yum makecache \
-    # Install default development tools (gcc, make, etc)
- && yum groupinstall -y "Development Tools" --setopt=group_package_types=mandatory,default
+    # Update all packages in the microdnf repository
+ && microdnf -y update \
+    # Install necessary development tools such as gcc, make, etc
+ && microdnf -y install autoconf automake binutils bison cmake flex gcc gcc-c++ gdb glibc-devel glibc-langpack-en libtool make perl-core pkgconf pkgconf-m4 pkgconf-pkg-config redhat-rpm-config rpm-build rpm-sign strace\
+    # Clean up the package manager cache
+ && microdnf -y clean all
 
-
-# The default version of cmake is 2.8.12. We need cmake to build a few of
-# our libraries, and at least one library requires a version of cmake greater than that.
-# Needed to build:
-# - libzip: minimum required CMAKE version 3.0.
-RUN LD_LIBRARY_PATH= yum install -y cmake3
-# Override the default `cmake`
-RUN ln -s /usr/bin/cmake3 /usr/bin/cmake
-
+RUN dnf install -y libjpeg-turbo-devel libpng-devel libwebp-devel freetype-devel
 
 # We need a base path for all the sourcecode we will build from.
 ENV BUILD_DIR="/tmp/build"
@@ -103,7 +97,7 @@ RUN set -xe; \
 # Needed by:
 #   - curl
 #   - php
-RUN yum install -y perl-IPC-Cmd
+RUN dnf install -y perl-IPC-Cmd
 ENV VERSION_OPENSSL=3.2.1
 ENV OPENSSL_BUILD_DIR=${BUILD_DIR}/openssl
 ENV CA_BUNDLE_SOURCE="https://curl.se/ca/cacert.pem"
@@ -381,8 +375,7 @@ RUN make && make install
 # libicu-devel : needed for intl
 # libxslt-devel : needed for the XSL extension
 # sqlite-devel : Since PHP 7.4 this must be installed (https://github.com/php/php-src/blob/99b8e67615159fc600a615e1e97f2d1cf18f14cb/UPGRADING#L616-L619)
-RUN LD_LIBRARY_PATH= yum install -y readline-devel gettext-devel libicu-devel libxslt-devel sqlite-devel
-
+RUN LD_LIBRARY_PATH= dnf install -y readline-devel gettext-devel libicu-devel libxslt-devel sqlite-devel
 
 # Note: this variable is used when building extra/custom extensions, do not remove
 ENV PHP_BUILD_DIR=/tmp/php
@@ -438,7 +431,10 @@ RUN CFLAGS="-fstack-protector-strong -fpic -fpie -O3 -I${INSTALL_DIR}/include -I
         --with-zlib-dir \
         --with-curl \
         --enable-exif \
+        --with-jpeg \
+        --with-webp \
         --enable-ftp \
+        --enable-gd \
         --with-gettext \
         --enable-mbstring \
         --with-pdo-mysql=shared,mysqlnd \
@@ -467,6 +463,7 @@ RUN set -xe; \
 # We can install extensions manually or using `pecl`
 RUN pecl install APCu
 
+RUN dnf install -y php8.2-gd
 
 # ---------------------------------------------------------------
 # Now we copy everything we need for the layers into /bref-layer (which will be used for the real /opt later)
@@ -482,7 +479,7 @@ RUN cp ${INSTALL_DIR}/bin/php /bref-layer/bin/php && chmod +x /bref-layer/bin/ph
 RUN cp $(php -r 'echo ini_get("extension_dir");')/* /bref-layer/bref/extensions/
 
 # Copy all the required system libraries from:
-# - /lib | /lib64 (system libraries installed with `yum`)
+# - /lib | /lib64 (system libraries installed with `dnf`)
 # - /opt/bin | /opt/lib | /opt/lib64 (libraries compiled from source)
 # into `/bref-layer` (the temp directory for the future Lambda layer)
 COPY --link utils/lib-copy /bref/lib-copy
@@ -492,6 +489,7 @@ RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/intl.so
 RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/opcache.so /bref-layer/lib
 RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/pdo_mysql.so /bref-layer/lib
 RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/pdo_pgsql.so /bref-layer/lib
+RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/gd.so /bref-layer/lib
 
 # Copy the OpenSSL certificates file
 RUN cp ${CA_BUNDLE} /bref-layer/bref/ssl/cert.pem
@@ -499,7 +497,7 @@ RUN cp ${CA_BUNDLE} /bref-layer/bref/ssl/cert.pem
 
 # ---------------------------------------------------------------
 # Start from a clean image to copy only the files we need
-FROM public.ecr.aws/lambda/provided:al2-${IMAGE_VERSION_SUFFIX} as isolation
+FROM public.ecr.aws/lambda/provided:al2023-${IMAGE_VERSION_SUFFIX} as isolation
 
 # We selected the files in /bref-layer, now we copy them to /opt (the real directory for the Lambda layer)
 COPY --link --from=build-environment /bref-layer /opt

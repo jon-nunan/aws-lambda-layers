@@ -11,23 +11,16 @@ ARG VERSION_PHP=8.0.30
 # https://docs.aws.amazon.com/lambda/latest/dg/current-supported-versions.html
 # AWS provides a Docker image that we use here:
 # https://github.com/amazonlinux/container-images/tree/amzn2
-FROM public.ecr.aws/lambda/provided:al2-${IMAGE_VERSION_SUFFIX} as build-environment
+FROM public.ecr.aws/lambda/provided:al2023-${IMAGE_VERSION_SUFFIX} as build-environment
 
 
 RUN set -xe \
-    # Download yum repository data to cache
- && yum makecache \
-    # Install default development tools (gcc, make, etc)
- && yum groupinstall -y "Development Tools" --setopt=group_package_types=mandatory,default
-
-
-# The default version of cmake is 2.8.12. We need cmake to build a few of
-# our libraries, and at least one library requires a version of cmake greater than that.
-# Needed to build:
-# - libzip: minimum required CMAKE version 3.0.
-RUN LD_LIBRARY_PATH= yum install -y cmake3
-# Override the default `cmake`
-RUN ln -s /usr/bin/cmake3 /usr/bin/cmake
+    # Update all packages in the microdnf repository
+ && microdnf -y update \
+    # Install necessary development tools such as gcc, make, etc
+ && microdnf -y install autoconf automake binutils bison cmake flex gcc gcc-c++ gdb glibc-devel glibc-langpack-en libtool make perl-core pkgconf pkgconf-m4 pkgconf-pkg-config redhat-rpm-config rpm-build rpm-sign strace\
+    # Clean up the package manager cache
+ && microdnf -y clean all
 
 
 # We need a base path for all the sourcecode we will build from.
@@ -380,7 +373,13 @@ RUN make && make install
 # libicu-devel : needed for intl
 # libxslt-devel : needed for the XSL extension
 # sqlite-devel : Since PHP 7.4 this must be installed (https://github.com/php/php-src/blob/99b8e67615159fc600a615e1e97f2d1cf18f14cb/UPGRADING#L616-L619)
-RUN LD_LIBRARY_PATH= yum install -y readline-devel gettext-devel libicu-devel libxslt-devel sqlite-devel
+RUN LD_LIBRARY_PATH= dnf install -y readline-devel gettext-devel libicu-devel libxslt-devel sqlite-devel
+
+# RUN wget https://kojipkgs.fedoraproject.org//packages/sqlite/3.45.2/1.fc41/x86_64/sqlite-devel-3.45.2-1.fc41.x86_64.rpm
+#
+# RUN wget https://kojipkgs.fedoraproject.org//packages/sqlite/3.45.2/1.fc41/x86_64/sqlite-3.45.2-1.fc41.x86_64.rpm
+#
+# RUN LD_LIBRARY_PATH= dnf install -y sqlite-3.45.2-1.fc41.x86_64.rpm sqlite-devel-3.45.2-1.fc41.x86_64.rpm
 
 
 # Note: this variable is used when building extra/custom extensions, do not remove
@@ -481,7 +480,7 @@ RUN cp ${INSTALL_DIR}/bin/php /bref-layer/bin/php && chmod +x /bref-layer/bin/ph
 RUN cp $(php -r 'echo ini_get("extension_dir");')/* /bref-layer/bref/extensions/
 
 # Copy all the required system libraries from:
-# - /lib | /lib64 (system libraries installed with `yum`)
+# - /lib | /lib64 (system libraries installed with `dnf`)
 # - /opt/bin | /opt/lib | /opt/lib64 (libraries compiled from source)
 # into `/bref-layer` (the temp directory for the future Lambda layer)
 COPY --link utils/lib-copy /bref/lib-copy
@@ -498,7 +497,7 @@ RUN cp ${CA_BUNDLE} /bref-layer/bref/ssl/cert.pem
 
 # ---------------------------------------------------------------
 # Start from a clean image to copy only the files we need
-FROM public.ecr.aws/lambda/provided:al2-${IMAGE_VERSION_SUFFIX} as isolation
+FROM public.ecr.aws/lambda/provided:al2023-${IMAGE_VERSION_SUFFIX} as isolation
 
 # We selected the files in /bref-layer, now we copy them to /opt (the real directory for the Lambda layer)
 COPY --link --from=build-environment /bref-layer /opt
