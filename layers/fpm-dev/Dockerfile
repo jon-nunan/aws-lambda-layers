@@ -3,11 +3,11 @@ ARG CPU_PREFIX
 ARG PHP_VERSION
 
 
-FROM bref/${CPU_PREFIX}build-php-$PHP_VERSION as build_extensions
+FROM jon-nunan/${CPU_PREFIX}build-php-$PHP_VERSION as build_extensions
 
 ARG PHP_VERSION
 
-RUN mkdir -p /opt/bref/extensions
+# RUN mkdir -p /opt/bref/extensions
 
 # Install xdebug
 RUN pecl install xdebug
@@ -20,8 +20,9 @@ RUN if [ $PHP_VERSION != "83" ] && [ $CPU_PREFIX == "" ]; then curl -A "Docker" 
 RUN if [ $PHP_VERSION != "83" ] && [ $CPU_PREFIX == "arm-" ]; then curl -A "Docker" -o /opt/bref/extensions/blackfire.so -L -s "https://packages.blackfire.io/binaries/blackfire-php/$BLACKFIRE_VERSION/blackfire-php-linux_arm64-php-"$PHP_VERSION".so"; fi
 
 
-FROM bref/${CPU_PREFIX}php-${PHP_VERSION}-fpm
+FROM jon-nunan/${CPU_PREFIX}php-${PHP_VERSION}-fpm
 
+RUN rm -rf /opt/*
 COPY --link --from=build_extensions /opt /opt
 COPY --link bref-entrypoint.sh /
 RUN chmod +x /bref-entrypoint.sh
@@ -30,7 +31,7 @@ RUN chmod +x /bref-entrypoint.sh
 RUN curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
 RUN dnf install -y nodejs
 
-COPY --from=bref/extra-gd-php-82:1 /opt /opt
+# COPY --from=bref/extra-gd-php-82:1 /opt /opt
 
 # Install the bref/local-api-gateway app in our container (avoids running 2 containers)
 COPY --link --from=bref/local-api-gateway /app /local-api-gateway

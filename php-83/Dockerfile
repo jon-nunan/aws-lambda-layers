@@ -348,6 +348,20 @@ RUN cd ${POSTGRES_BUILD_DIR}/src/backend && make generated-headers
 RUN cd ${POSTGRES_BUILD_DIR}/src/include && make install
 
 
+##################################
+# Sqlite
+ENV VERSION_SQLITE=3460100
+ENV SQLITE_BUILD_DIR=${BUILD_DIR}/sqlite
+RUN set -xe; \
+    mkdir -p ${SQLITE_BUILD_DIR}/bin; \
+    curl -Ls https://sqlite.org/2024/sqlite-autoconf-${VERSION_SQLITE}.tar.gz \
+    | tar xzC ${SQLITE_BUILD_DIR} --strip-components=1
+WORKDIR  ${SQLITE_BUILD_DIR}/
+RUN ./configure
+RUN make
+RUN make install
+
+
 ###############################################################################
 # Oniguruma
 # This library is not packaged in PHP since PHP 7.4.
