@@ -1,45 +1,61 @@
 # syntax = docker/dockerfile:1.4
+
+# Declare build arguments
 ARG CPU_PREFIX
 ARG PHP_VERSION
 
+# Base image with your existing PHP setup
+FROM jon-nunan/${CPU_PREFIX}php-${PHP_VERSION}-fpm as base
 
-FROM jon-nunan/${CPU_PREFIX}build-php-$PHP_VERSION as build_extensions
+# Build stage for PHP extensions
+FROM base as build_extensions
 
-ARG PHP_VERSION
+# Install tools and required libraries for building extensions
+RUN dnf install -y gcc make autoconf brotli libpng libwebp
 
-# RUN mkdir -p /opt/bref/extensions
+# Install PEAR and PECL
+RUN dnf install -y php-pear php-devel
 
-# Install xdebug
-RUN pecl install xdebug
-RUN cp $(php -r "echo ini_get('extension_dir');")/xdebug.so /opt/bref/extensions
+# Install and configure Xdebug
+RUN pecl install xdebug \
+    && cp $(php -r "echo ini_get('extension_dir');")/xdebug.so /opt/bref/extensions
 
 # Install Blackfire
-# https://blackfire.io/docs/up-and-running/installation?action=install&mode=full&version=latest&mode=full&location=server&os=manual&language=php#install-the-php-probe
 ARG BLACKFIRE_VERSION=1.87.2
-RUN if [ $PHP_VERSION != "83" ] && [ $CPU_PREFIX == "" ]; then curl -A "Docker" -o /opt/bref/extensions/blackfire.so -L -s "https://packages.blackfire.io/binaries/blackfire-php/$BLACKFIRE_VERSION/blackfire-php-linux_amd64-php-"$PHP_VERSION".so"; fi
-RUN if [ $PHP_VERSION != "83" ] && [ $CPU_PREFIX == "arm-" ]; then curl -A "Docker" -o /opt/bref/extensions/blackfire.so -L -s "https://packages.blackfire.io/binaries/blackfire-php/$BLACKFIRE_VERSION/blackfire-php-linux_arm64-php-"$PHP_VERSION".so"; fi
+RUN if [ "$PHP_VERSION" != "83" ]; then \
+      curl -A "Docker" -o /opt/bref/extensions/blackfire.so -L -s "https://packages.blackfire.io/binaries/blackfire-php/$BLACKFIRE_VERSION/blackfire-php-linux_amd64-php-"$PHP_VERSION".so"; \
+    fi
 
+# Final stage
+FROM base
 
-FROM jon-nunan/${CPU_PREFIX}php-${PHP_VERSION}-fpm
+# Ensure necessary libraries are available
+RUN dnf install -y brotli libpng libwebp \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
 
-RUN rm -rf /opt/*
-COPY --link --from=build_extensions /opt /opt
-COPY --link bref-entrypoint.sh /
+# Copy extensions from build stage
+COPY --from=build_extensions /opt /opt
+
+# Copy entrypoint script and make it executable
+COPY bref-entrypoint.sh /
 RUN chmod +x /bref-entrypoint.sh
 
-# Install node to run the JS app below
-RUN curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
-RUN dnf install -y nodejs
+# Install Node.js to run the JS app below
+RUN curl -fsSL https://rpm.nodesource.com/setup_18.x | bash - \
+    && dnf install -y nodejs
 
-# COPY --from=bref/extra-gd-php-82:1 /opt /opt
+# Copy the bref local API Gateway app
+COPY --from=bref/local-api-gateway /app /local-api-gateway
 
-# Install the bref/local-api-gateway app in our container (avoids running 2 containers)
-COPY --link --from=bref/local-api-gateway /app /local-api-gateway
+# Expose port 8000 for the local API Gateway
 EXPOSE 8000
 
-# Add `php/conf.dev.d` to the path where PHP looks for configuration files
+# Add `php/conf.dev.d` to the PHP configuration path
 ENV PHP_INI_SCAN_DIR="/opt/bref/etc/php/conf.d:/var/task/php/conf.d:/var/task/php/conf.dev.d"
 
-# Originally the entrypoint is `/lambda-entrypoint.sh` and CMD contains the handler name
-# We override the entrypoint to run our own logic
+# Ensure library paths are updated
+ENV LD_LIBRARY_PATH="/usr/lib64:$LD_LIBRARY_PATH"
+
+# Set the custom entrypoint script
 ENTRYPOINT [ "/bref-entrypoint.sh" ]
