@@ -35,29 +35,32 @@ default: docker-images layers
 
 
 # Build Docker images *locally*
-docker-images: docker-images-php-80 docker-images-php-81 docker-images-php-82 docker-images-php-83
+# docker-images: docker-images-php-80 docker-images-php-81 docker-images-php-82 docker-images-php-83
+docker-images: docker-images-php-83
 docker-images-php-%:
 	PHP_VERSION=$* ${BAKE_COMMAND} --load
 
 
 # Build Lambda layers (zip files) *locally*
-layers: layer-php-80 layer-php-81 layer-php-82 layer-php-83 layer-php-80-fpm layer-php-81-fpm layer-php-82-fpm layer-php-83-fpm
+# layers: layer-php-80 layer-php-81 layer-php-82 layer-php-83 layer-php-80-fpm layer-php-81-fpm layer-php-82-fpm layer-php-83-fpm
+layers: layer-php-83 layer-php-83-fpm
 	# Build the console layer only once (x86 and single PHP version)
 	@if [ ${CPU} = "x86" ]; then \
 		$(MAKE) layer-console; \
 	fi
 layer-console:
-	./utils/docker-zip-dir.sh bref/console-zip console
+	./utils/docker-zip-dir.sh jon-nunan/console-zip console
 # This rule matches with a wildcard, for example `layer-php-80`.
 # The `$*` variable will contained the matched part, in this case `php-80`.
 layer-%:
-	./utils/docker-zip-dir.sh bref/${CPU_PREFIX}$* ${CPU_PREFIX}$*
+	./utils/docker-zip-dir.sh jon-nunan/${CPU_PREFIX}$* ${CPU_PREFIX}$*
 
 
 # Upload the layers to AWS Lambda
 # Uses the current AWS_PROFILE. Most users will not want to use this option
 # as this will publish all layers to all regions + publish all Docker images.
-upload-layers: upload-layers-php-80 upload-layers-php-81 upload-layers-php-82 upload-layers-php-83
+# upload-layers: upload-layers-php-80 upload-layers-php-81 upload-layers-php-82 upload-layers-php-83
+upload-layers: upload-layers-php-83
 	# Upload the console layer only once (x86 and single PHP version)
 	@if [ ${CPU} = "x86" ]; then \
 		LAYER_NAME=console $(MAKE) -C ./utils/lambda-publish publish-parallel; \
@@ -67,6 +70,8 @@ upload-layers-php-%:
 	LAYER_NAME=${CPU_PREFIX}php-$* $(MAKE) -C ./utils/lambda-publish publish-parallel
 	# Upload the FPM layers to AWS
 	LAYER_NAME=${CPU_PREFIX}php-$*-fpm $(MAKE) -C ./utils/lambda-publish publish-parallel
+	# Upload the FPM dev layers to AWS
+	# LAYER_NAME=${CPU_PREFIX}php-$*-fpm-dev $(MAKE) -C ./utils/lambda-publish publish-parallel
 
 
 # Publish Docker images to Docker Hub.
