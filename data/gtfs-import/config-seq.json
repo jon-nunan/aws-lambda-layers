@@ -1,0 +1,15 @@
+{
+  "agencies": [
+    {
+      "agency_key": "Translink_SEQ",
+      "url": "https://gtfsrt.api.translink.com.au/GTFS/SEQ_GTFS.zip"
+    }
+  ],
+  "csvOptions": {
+    "skip_lines_with_error": true
+  },
+  "downloadTimeout": 5000,
+  "ignoreDuplicates": false,
+  "ignoreErrors": false,
+  "sqlitePath": "gtfs-seq.sqlite"
+}

@@ -480,6 +480,8 @@ RUN pecl install APCu
 
 RUN dnf install -y php8.3-gd
 
+RUN dnf install -y php-pgsql
+
 # ---------------------------------------------------------------
 # Now we copy everything we need for the layers into /bref-layer (which will be used for the real /opt later)
 RUN mkdir -p /bref-layer/bin \
@@ -553,3 +555,6 @@ COPY --link layers/fpm/bootstrap.sh /var/runtime/bootstrap
 RUN chmod +x /opt/bootstrap && chmod +x /var/runtime/bootstrap
 
 COPY --link layers/fpm/php-fpm.conf /opt/bref/etc/php-fpm.conf
+
+COPY --link data/gtfs-import/gtfs-seq.sqlite /data/
+COPY --link data/gtfs-import/geojson/Translink_SEQ/Translink_SEQ.geojson /data/Translink_SEQ.geojson

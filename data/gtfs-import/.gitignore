@@ -1,0 +1,3 @@
+# Don't need these in version control, can build in CI.
+*.sqlite
+*.geojson
