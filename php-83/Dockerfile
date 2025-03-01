@@ -496,7 +496,7 @@ RUN \
 RUN echo $' \n\
 extension = "newrelic.so" \n\
 newrelic.appname = "BrefLambda" \n\
-newrelic.license = "629dae52b8259ef4f42995ded9823023FFFFNRAL" \n\
+newrelic.license = "${NEWRELIC_LICENSE}" \n\
 newrelic.logfile = "/dev/null" \n\
 newrelic.loglevel = "error" \n\
 ' >> ${INSTALL_DIR}/etc/php/php.ini
