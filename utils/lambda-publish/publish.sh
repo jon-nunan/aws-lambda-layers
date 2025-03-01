@@ -19,10 +19,25 @@ if [ -z "$REGION" ]; then
     echo "\$REGION must be set"
     exit 1
 fi
-# If $ONLY_REGION is set and different from $REGION, then we skip this region
-if [ -n "$ONLY_REGION" ] && [ "$REGION" != "$ONLY_REGION" ]; then
-    echo "Skipping $REGION"
-    exit 0
+# If $ONLY_REGION is set, check if $REGION is part of the only allowed regions
+if [ -n "$ONLY_REGION" ]; then
+    # Split $ONLY_REGION into an array using IFS (Internal Field Separator)
+    IFS=',' read -ra ALLOWED_REGIONS <<< "$ONLY_REGION"
+
+    # Assume the region is not allowed unless found in the array
+    is_allowed=false
+    for allowed_region in "${ALLOWED_REGIONS[@]}"; do
+        if [ "$REGION" == "$allowed_region" ]; then
+            is_allowed=true
+            break
+        fi
+    done
+
+    # Skip the region if it is not allowed
+    if [ "$is_allowed" == false ]; then
+        echo "Skipping $REGION"
+        exit 0
+    fi
 fi
 
 

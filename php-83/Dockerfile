@@ -18,7 +18,7 @@ RUN set -xe \
     # Update all packages in the microdnf repository
  && microdnf -y update \
     # Install necessary development tools such as gcc, make, etc
- && microdnf -y install autoconf automake binutils bison cmake flex gcc gcc-c++ gdb glibc-devel glibc-langpack-en libtool make perl-core pkgconf pkgconf-m4 pkgconf-pkg-config redhat-rpm-config rpm-build rpm-sign strace\
+ && microdnf -y install autoconf automake binutils bison cmake flex gcc gcc-c++ gdb glibc-devel glibc-langpack-en libtool make perl-core pkgconf pkgconf-m4 pkgconf-pkg-config postgresql-devel redhat-rpm-config rpm-build rpm-sign strace\
     # Clean up the package manager cache
  && microdnf -y clean all
 
@@ -457,6 +457,7 @@ RUN CFLAGS="-fstack-protector-strong -fpic -fpie -O3 -I${INSTALL_DIR}/include -I
         --enable-pcntl \
         --with-zip \
         --enable-bcmath \
+        --with-pgsql=shared,${INSTALL_DIR} \
         --with-pdo-pgsql=shared,${INSTALL_DIR} \
         --enable-intl=shared \
         --enable-soap \
@@ -482,6 +483,24 @@ RUN dnf install -y php8.3-gd
 
 RUN dnf install -y php-pgsql
 
+## Install NewRelic
+
+RUN \
+  curl -L https://download.newrelic.com/php_agent/release/newrelic-php5-11.4.0.17-linux.tar.gz | tar -C /tmp -zx && \
+  export NR_INSTALL_USE_CP_NOT_LN=1 && \
+  export NR_INSTALL_DAEMONPATH=${INSTALL_DIR}/sbin/newrelic-daemon && \
+  export NR_INSTALL_SILENT=1 && \
+  /tmp/newrelic-php5-*/newrelic-install install && \
+  rm -rf /tmp/newrelic-php5-* /tmp/nrinstall*
+
+RUN echo $' \n\
+extension = "newrelic.so" \n\
+newrelic.appname = "BrefLambda" \n\
+newrelic.license = "629dae52b8259ef4f42995ded9823023FFFFNRAL" \n\
+newrelic.logfile = "/dev/null" \n\
+newrelic.loglevel = "error" \n\
+' >> ${INSTALL_DIR}/etc/php/php.ini
+
 # ---------------------------------------------------------------
 # Now we copy everything we need for the layers into /bref-layer (which will be used for the real /opt later)
 RUN mkdir -p /bref-layer/bin \
@@ -495,6 +514,8 @@ RUN cp ${INSTALL_DIR}/bin/php /bref-layer/bin/php && chmod +x /bref-layer/bin/ph
 # Copy all the external PHP extensions
 RUN cp $(php -r 'echo ini_get("extension_dir");')/* /bref-layer/bref/extensions/
 
+RUN ls -asl /bref-layer/bref/extensions
+
 # Copy all the required system libraries from:
 # - /lib | /lib64 (system libraries installed with `dnf`)
 # - /opt/bin | /opt/lib | /opt/lib64 (libraries compiled from source)
@@ -506,7 +527,10 @@ RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/intl.so
 RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/opcache.so /bref-layer/lib
 RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/pdo_mysql.so /bref-layer/lib
 RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/pdo_pgsql.so /bref-layer/lib
+RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/pgsql.so /bref-layer/lib
 RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/gd.so /bref-layer/lib
+RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bref/extensions/newrelic.so /bref-layer/lib
+
 
 # Copy the OpenSSL certificates file
 RUN cp ${CA_BUNDLE} /bref-layer/bref/ssl/cert.pem
@@ -540,6 +564,7 @@ RUN chmod +x /opt/bootstrap && chmod +x /var/runtime/bootstrap
 FROM build-environment as fpm-extension
 
 RUN cp ${INSTALL_DIR}/sbin/php-fpm /bref-layer/bin/php-fpm
+RUN cp ${INSTALL_DIR}/sbin/newrelic-daemon /bref-layer/bin/newrelic-daemon
 RUN php /bref/lib-copy/copy-dependencies.php /bref-layer/bin/php-fpm /bref-layer/lib
 
 
@@ -555,6 +580,8 @@ COPY --link layers/fpm/bootstrap.sh /var/runtime/bootstrap
 RUN chmod +x /opt/bootstrap && chmod +x /var/runtime/bootstrap
 
 COPY --link layers/fpm/php-fpm.conf /opt/bref/etc/php-fpm.conf
+COPY --link layers/fpm/newrelic.cfg /opt/bref/etc/newrelic.cfg
+
 
 COPY --link data/gtfs-import/gtfs-seq.sqlite /data/
 COPY --link data/gtfs-import/geojson/Translink_SEQ/Translink_SEQ.geojson /data/Translink_SEQ.geojson

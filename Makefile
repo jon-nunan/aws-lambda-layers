@@ -38,7 +38,11 @@ default: docker-images layers
 # docker-images: docker-images-php-80 docker-images-php-81 docker-images-php-82 docker-images-php-83
 docker-images: docker-images-php-83
 docker-images-php-%:
-	PHP_VERSION=$* ${BAKE_COMMAND} --load
+	PHP_VERSION=$* ${BAKE_COMMAND} --load 2>&1 | ts "[%Y-%m-%d %H:%M:%S]" >> build.log
+
+debug-docker-images:
+	@echo "Building Docker images with version PHP_VERSION=$(PHP_VERSION)"
+	PHP_VERSION=$(PHP_VERSION) ${BAKE_COMMAND} --load --no-cache 2>&1| tee build-docker.log
 
 
 # Build Lambda layers (zip files) *locally*
@@ -82,8 +86,8 @@ upload-to-docker-hub-php-%:
 	test $(DOCKER_TAG)
 
 	for image in \
-	  "bref/${CPU_PREFIX}php-$*" "bref/${CPU_PREFIX}php-$*-fpm" "bref/${CPU_PREFIX}php-$*-console" \
-	  "bref/${CPU_PREFIX}build-php-$*" "bref/${CPU_PREFIX}php-$*-fpm-dev"; \
+	  "jon-nunan/${CPU_PREFIX}php-$*" "jon-nunan/${CPU_PREFIX}php-$*-fpm" "jon-nunan/${CPU_PREFIX}php-$*-console" \
+	  "jon-nunan/${CPU_PREFIX}build-php-$*" "jon-nunan/${CPU_PREFIX}php-$*-fpm-dev"; \
 	do \
 		docker tag $$image $$image:2 ; \
 		docker tag $$image $$image:${DOCKER_TAG} ; \
@@ -103,10 +107,10 @@ clean: clean-80 clean-81 clean-82 clean-83
 	rm -f output/${CPU_PREFIX}*.zip
 clean-%:
 	# Clean Docker images to force rebuilding them
-	docker image rm --force bref/${CPU_PREFIX}build-php-$* \
-		bref/${CPU_PREFIX}php-$* \
-		bref/${CPU_PREFIX}php-$*-zip \
-		bref/${CPU_PREFIX}php-$*-fpm \
-		bref/${CPU_PREFIX}php-$*-fpm-zip \
-		bref/${CPU_PREFIX}php-$*-fpm-dev \
-		bref/${CPU_PREFIX}php-$*-console
+	docker image rm --force jon-nunan/${CPU_PREFIX}build-php-$* \
+		jon-nunan/${CPU_PREFIX}php-$* \
+		jon-nunan/${CPU_PREFIX}php-$*-zip \
+		jon-nunan/${CPU_PREFIX}php-$*-fpm \
+		jon-nunan/${CPU_PREFIX}php-$*-fpm-zip \
+		jon-nunan/${CPU_PREFIX}php-$*-fpm-dev \
+		jon-nunan/${CPU_PREFIX}php-$*-console
