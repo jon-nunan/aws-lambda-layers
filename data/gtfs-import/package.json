@@ -1,0 +1,17 @@
+{
+  "name": "gtfs-import",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "import-seq": "gtfs-import --configPath ./config-seq.json",
+    "import-geo-seq": "gtfs-to-geojson --configPath ./config-seq.json"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "gtfs": "^4.14.4",
+    "gtfs-to-geojson": "^3.7.6"
+  }
+}
